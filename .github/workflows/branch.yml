@@ -40,7 +40,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_REGISTRY }}/yam-offer-view:${{ github.ref_name }}
+          tags: ${{ secrets.DOCKER_REGISTRY }}/yam-offer-viewer:${{ github.ref_name }}
 
       - name: Configure SSH
         run: |
@@ -83,7 +83,7 @@ jobs:
             export DOCKER_BRANCH="$DOCKER_BRANCH"
             export DOCKER_REGISTRY="$DOCKER_REGISTRY"
       
-            cd /var/docker/yam-offer-view/\$DOCKER_BRANCH
+            cd /var/docker/yam-offer-viewer/\$DOCKER_BRANCH
             git pull origin \$DOCKER_BRANCH
             docker compose --file docker-compose-branch.yml pull
             docker login -u "$DOCKER_LOGIN" -p "$DOCKER_PASSWD" \$DOCKER_REGISTRY
@@ -96,5 +96,5 @@ jobs:
             NEXT_PUBLIC_GNOSIS_RPC_URL="$NEXT_PUBLIC_GNOSIS_RPC_URL" \
             NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="$NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID" \
             HOSTNAME="$HOSTNAME" \
-            docker compose --project-name \$DOCKER_BRANCH-yam-offer-view --file docker-compose-branch.yml up -d
+            docker compose --project-name \$DOCKER_BRANCH-yam-offer-viewer --file docker-compose-branch.yml up -d
           EOF
