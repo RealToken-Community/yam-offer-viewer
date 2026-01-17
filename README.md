@@ -1,160 +1,80 @@
 # RealToken Offer Viewer
 
-Mini-projet pour visualiser et acheter des offres RealToken YAM par ID.
+Mini-project to view and purchase RealToken YAM offers by ID.
 
-## 🚀 Démarrage rapide
+## 🚀 Quick start
 
-### Prérequis
+### Prerequisites
 
-- Node.js >= 18.12.0
-- npm >= 8.0.0 ou yarn
+- Node.js >= 20.18.0
+- yarn >= 1.22.22
 
 ### Installation
 
-1. **Cloner ou créer le projet**
+1. **Clone the project**
+
+2. **Install dependencies**
 
 ```bash
-mkdir realtoken-offer-viewer
-cd realtoken-offer-viewer
-```
-
-2. **Installer les dépendances**
-
-```bash
-npm install
-# ou
 yarn install
 ```
 
-3. **Configurer les variables d'environnement**
+3. **Configure the environment variables**
 
-Créer un fichier `.env.local` à la racine du projet :
+Create a `.env` file at the root of the project
 
-```env
-# API Community RealT (backend)
-COMMUNITY_API_KEY=votre_clé_api
-
-# API Community RealT (public)
-NEXT_PUBLIC_COMMUNITY_API_URI=https://api.realt.community/v1
-
-# API YAM (public)
-NEXT_PUBLIC_API_URL=https://yam-api.realt.community
-
-# Environnement
-NEXT_PUBLIC_ENV=dev
-```
-
-Pour obtenir une `COMMUNITY_API_KEY`, rejoindre le [canal Telegram dev](https://t.me/+XQyoaFfmN61yk7X0)
-
-4. **Lancer le serveur de développement**
+4. **Start the development server**
 
 ```bash
-npm run dev
-# ou
 yarn dev
 ```
 
-5. **Ouvrir dans le navigateur**
+5. **Open in the browser**
 
 ```
-http://localhost:3000/view-offer?id=VOTRE_ID
+http://localhost:3000/?id=YOUR_OFFER_ID
 ```
 
-## 📁 Structure du projet
+## 📁 Project structure
 
 ```
 realtoken-offer-viewer/
 ├── pages/
-│   ├── _app.tsx           # Application Next.js
-│   ├── _document.tsx      # Document HTML personnalisé
-│   └── view-offer.tsx     # Page principale
+│   └── index.tsx     # Main page
 ├── styles/
-│   └── globals.css        # Styles globaux
-├── public/                # Assets statiques
-├── .env.local             # Variables d'environnement (à créer)
-├── .env.example           # Template des variables
-├── next.config.js         # Configuration Next.js
-├── tsconfig.json          # Configuration TypeScript
-├── tailwind.config.js     # Configuration Tailwind CSS
-├── postcss.config.js      # Configuration PostCSS
-├── package.json           # Dépendances du projet
-└── README.md             # Ce fichier
+│   └── globals.css        # Global styles
+├── public/                # Static assets
+├── .env.example           # Environment variables template
+├── next.config.js         # Next.js configuration
+├── tsconfig.json          # TypeScript configuration
+├── tailwind.config.js     # Tailwind CSS configuration
+├── postcss.config.js      # PostCSS configuration
+├── package.json           # Dependencies
+└── README.md             # This file
 ```
 
-## 🔧 Scripts disponibles
+## 🌐 Usage
 
-```bash
-# Développement
-npm run dev
+### Search an offer
 
-# Build de production
-npm run build
+1. Enter an offer ID in the search bar
+2. Click on "Search" or press Enter
+3. The offer details are displayed
 
-# Démarrer en production
-npm run start
+### Buy an offer
 
-# Vérifier le code
-npm run lint
-
-# Vérifier les types TypeScript
-npm run type-check
-```
-
-## 🌐 Utilisation
-
-### Rechercher une offre
-
-1. Entrer un ID d'offre dans la barre de recherche
-2. Cliquer sur "Rechercher" ou appuyer sur Entrée
-3. Les détails de l'offre s'affichent
-
-### Lien direct
-
-Partager un lien direct vers une offre :
-
-```
-https://votre-domaine.com/view-offer?id=123
-```
-
-### Acheter une offre
-
-1. Cliquer sur "Acheter cette offre"
-2. Entrer la quantité souhaitée
-3. Confirmer la transaction
-
-## 📡 APIs utilisées
-
-### RealToken Community API
-
-- **Endpoint**: `https://api.realt.community/v1`
-- **Documentation**: [API Community](https://api.realt.community)
-- **Authentification**: Header `X-AUTH-REALT-TOKEN`
-
-### YAM API
-
-- **Endpoint**: `https://yam-api.realt.community`
-- **Documentation**: Disponible sur le repo [realtoken-yam-interface](https://github.com/real-token/realtoken-yam-interface)
+1. Click on "Buy this offer"
+2. Enter the desired quantity
+3. Confirm the transaction
 
 ## 🔐 Sécurité
 
 ⚠️ **Important** : 
-- Ne jamais commit le fichier `.env.local`
-- La `COMMUNITY_API_KEY` ne doit jamais être exposée côté client
-- Seules les variables avec `NEXT_PUBLIC_` sont accessibles côté client
+- Never commit the `.env` file
+- The `COMMUNITY_API_KEY` must never be exposed to the client
+- Only variables with `NEXT_PUBLIC_` are accessible to the client
 
-## 🚀 Déploiement
-
-### Vercel (recommandé)
-
-```bash
-# Installer Vercel CLI
-npm i -g vercel
-
-# Déployer
-vercel
-```
-
-N'oubliez pas de configurer les variables d'environnement dans le dashboard Vercel.
+## 🚀 Deployment
 
 ### Docker
 
@@ -165,30 +85,3 @@ docker build -t realtoken-offer-viewer .
 # Run
 docker run -p 3000:3000 realtoken-offer-viewer
 ```
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! N'hésitez pas à :
-
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/amazing-feature`)
-3. Commit les changements (`git commit -m 'Add amazing feature'`)
-4. Push vers la branche (`git push origin feature/amazing-feature`)
-5. Ouvrir une Pull Request
-
-## 📝 Licence
-
-MIT - Voir le fichier `LICENSE` pour plus de détails.
-
-## 🔗 Liens utiles
-
-- [RealToken](https://realt.co/)
-- [RealToken YAM Interface](https://github.com/real-token/realtoken-yam-interface)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [TypeScript](https://www.typescriptlang.org/docs/)
-
-## 💬 Support
-
-- Telegram dev: [https://t.me/+XQyoaFfmN61yk7X0](https://t.me/+XQyoaFfmN61yk7X0)
-- Issues GitHub: [Créer une issue](https://github.com/votre-repo/issues)
