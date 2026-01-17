@@ -1,0 +1,106 @@
+name: Test and deploy to branch
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Lint
+        run: yarn run lint
+
+      - name: Prettier
+        run: yarn run prettier:check
+
+      - name: Build
+        run: yarn run build
+
+  deploy:
+    name: Deploy to branch
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_LOGIN }}
+          password: ${{ secrets.DOCKER_PASSWD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_REGISTRY }}/yam-offer-view:${{ github.ref_name }}
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_KEY" > ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host staging
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+
+      - name: Update branch environment
+        env:
+          DOCKER_BRANCH: ${{ github.ref_name }}
+          DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+          DOCKER_LOGIN: ${{ secrets.DOCKER_LOGIN }}
+          DOCKER_PASSWD: ${{ secrets.DOCKER_PASSWD }}
+          DOMAIN_URL: ${{ secrets.DOMAIN_URL }}
+          COMMUNITY_API_KEY: ${{ secrets.COMMUNITY_API_KEY }}
+          COMMUNITY_API_URI: ${{ secrets.COMMUNITY_API_URI }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_ENV: prod
+          NEXT_PUBLIC_ETHEREUM_RPC_URL: ${{ secrets.NEXT_PUBLIC_ETHEREUM_RPC_URL }}
+          NEXT_PUBLIC_GNOSIS_RPC_URL: ${{ secrets.NEXT_PUBLIC_GNOSIS_RPC_URL }}
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID }}
+        run: |
+          export HOSTNAME="offer-view.yam.realtoken.community"
+      
+          ssh staging <<EOF
+            set -euxo pipefail
+            export DOCKER_BRANCH="$DOCKER_BRANCH"
+            export DOCKER_REGISTRY="$DOCKER_REGISTRY"
+      
+            cd /var/docker/yam-offer-view/\$DOCKER_BRANCH
+            git pull origin \$DOCKER_BRANCH
+            docker compose --file docker-compose-branch.yml pull
+            docker login -u "$DOCKER_LOGIN" -p "$DOCKER_PASSWD" \$DOCKER_REGISTRY
+
+            COMMUNITY_API_KEY="$COMMUNITY_API_KEY" \
+            COMMUNITY_API_URI="$COMMUNITY_API_URI" \
+            NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+            NEXT_PUBLIC_ENV="$NEXT_PUBLIC_ENV" \
+            NEXT_PUBLIC_ETHEREUM_RPC_URL="$NEXT_PUBLIC_ETHEREUM_RPC_URL" \
+            NEXT_PUBLIC_GNOSIS_RPC_URL="$NEXT_PUBLIC_GNOSIS_RPC_URL" \
+            NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="$NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID" \
+            HOSTNAME="$HOSTNAME" \
+            docker compose --project-name \$DOCKER_BRANCH-yam-offer-view --file docker-compose-branch.yml up -d
+          EOF
