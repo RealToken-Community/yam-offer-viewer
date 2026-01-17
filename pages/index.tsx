@@ -485,7 +485,7 @@ const combineOfferData = async (yamOffer: YamOffer): Promise<Offer> => {
   };
 };
 
-export default function ViewOfferPage() {
+export default function Home() {
   const router = useRouter();
   const { id } = router.query;
   
@@ -548,7 +548,7 @@ export default function ViewOfferPage() {
 
   const handleSearch = () => {
     if (searchId.trim()) {
-      router.push(`/view-offer?id=${searchId.trim()}`, undefined, { shallow: true });
+      router.push(`/?id=${searchId.trim()}`, undefined, { shallow: true });
     }
   };
 
@@ -736,7 +736,7 @@ export default function ViewOfferPage() {
       <>
         <Head>
           <title>RealToken Offer Viewer</title>
-          <meta name="description" content="Visualisez et achetez des offres RealToken YAM" />
+          <meta name="description" content="View and buy RealToken YAM offers" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
         </Head>
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -753,7 +753,7 @@ export default function ViewOfferPage() {
     <>
       <Head>
         <title>RealToken Offer Viewer - {offer ? `Offer #${offer.id}` : 'Search an offer'}</title>
-        <meta name="description" content="Visualisez et achetez des offres RealToken YAM" />
+        <meta name="description" content="View and buy RealToken YAM offers" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -762,13 +762,17 @@ export default function ViewOfferPage() {
           <div className="max-w-6xl mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-[#F2A91E] rounded-lg flex items-center justify-center">
-                  <ShoppingCart className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-100">RealToken YAM</h1>
-                  <p className="text-sm text-gray-400">Offer Viewer</p>
-                </div>
+                <a href="/" target="_self" rel="noreferrer">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-[#F2A91E] rounded-lg flex items-center justify-center">
+                            <ShoppingCart className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-gray-100">RealToken YAM</h1>
+                            <p className="text-sm text-gray-400">Offer Viewer</p>
+                        </div>
+                    </div>
+                </a>
               </div>
               <ConnectButton />
             </div>
