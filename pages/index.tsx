@@ -21,9 +21,9 @@ const STABLE_TOKENS: Record<
 > = {
   gnosis: {
     '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d': { symbol: 'WXDAI', decimals: 18, name: 'Wrapped xDAI' },
-    '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83': { symbol: 'USDC', decimals: 6 },
-    '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b': { symbol: 'armmv3WXDAI', decimals: 18 },
-    '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1': { symbol: 'armmv3USDC', decimals: 6 },
+    '0xddafbb505ad214d7b80b1f830fccc89b60fb7a83': { symbol: 'USDC', decimals: 6 },
+    '0x0ca4f5554dd9da6217d62d8df2816c82bba4157b': { symbol: 'armmv3WXDAI', decimals: 18 },
+    '0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1': { symbol: 'armmv3USDC', decimals: 6 },
   },
   ethereum: {
     // '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': { symbol: 'USDC', decimals: 6 },
@@ -101,19 +101,20 @@ interface YamOffer {
 
 interface Offer {
   id: string;
-  tokenAddress: string;
-  propertyName: string;
   price: string;
+  reversePrice: string;
   amount: string;
   seller: string;
   status: 'active' | 'sold' | 'cancelled';
   createdAt: string;
   chain: 'gnosis' | 'ethereum';
   tokenDetails?: RealToken;
-  exchangeTokenAddress?: string;
-  exchangeTokenSymbol?: string;
-  exchangeTokenDecimals?: number;
-  priceSymbol?: string;
+  offerAddress: string;
+  offerDecimals?: number;
+  offerSymbol: string;
+  buyerAddress?: string;
+  buyerDecimals?: number;
+  buyerSymbol?: string;
   officialPriceUsd?: number;
   priceDiff?: number;
   priceDiffPct?: number;
@@ -405,35 +406,33 @@ const combineOfferData = async (yamOffer: YamOffer): Promise<Offer> => {
     console.warn('Error fetching token details, continuing with limited info:', err);
   }
 
-  // Heuristique:
-  // - si un seul des deux est trouvé dans l'API => c'est la propriété
-  // - si les deux sont trouvés => on garde offerToken comme propriété (cas rare)
-  // - si aucun n'est trouvé => fallback sur offerToken comme "propriété inconnue"
-  const propertyIsBuyerToken = !offerTokenDetails && !!buyerTokenDetails;
-  const propertyTokenAddress = propertyIsBuyerToken ? yamOffer.buyerTokenAddress : yamOffer.offerTokenAddress;
-  const exchangeTokenAddress = propertyIsBuyerToken ? yamOffer.offerTokenAddress : yamOffer.buyerTokenAddress;
-  const tokenDetails = propertyIsBuyerToken ? buyerTokenDetails : offerTokenDetails;
+  // On traite toujours l'offerToken comme la propriété (ce qui est vendu)
+  // et le buyerToken comme la monnaie d'échange (ce qui est demandé).
+  const offerAddress = yamOffer.offerTokenAddress;
+  const buyerAddress = yamOffer.buyerTokenAddress;
+  const tokenDetails = offerTokenDetails;
 
   // Si le "propertyToken" n'est pas trouvé, on considère qu'on est sur un token d'échange (stablecoin) côté propertyToken
   // et on affiche au moins le symbole du token d'échange détecté (ex: WXDAI)
-  const exchangeStableMeta = getStableMeta(chain, exchangeTokenAddress);
+  const exchangeStableMeta = getStableMeta(chain, buyerAddress);
   const exchangeMeta = exchangeStableMeta
     ? { name: exchangeStableMeta.name, symbol: exchangeStableMeta.symbol }
-    : (exchangeTokenAddress ? await getErc20Meta(exchangeTokenAddress, chain) : {});
+    : (buyerAddress ? await getErc20Meta(buyerAddress, chain) : {});
 
   const offerTokenDecimals = yamOffer.offerTokenDecimals ?? 18;
   const buyerTokenDecimals = yamOffer.buyerTokenDecimals ?? 18;
 
   // Prix/quantité formatés
-  const priceNum = Number(ethers.utils.formatUnits(yamOffer.price || '0', offerTokenDecimals));
-  const amountNum = Number(ethers.utils.formatUnits(yamOffer.amount || '0', buyerTokenDecimals));
+  const priceNum = Number(ethers.utils.formatUnits(yamOffer.price || '0', buyerTokenDecimals));
+  const amountNum = Number(ethers.utils.formatUnits(yamOffer.amount || '0', offerTokenDecimals));
+  const reversePriceNum = 1 / priceNum;
 
   // Symbole du prix: si token d'échange stable connu => son symbol, sinon fallback ERC20, sinon '$'
   const priceSymbol = exchangeStableMeta?.symbol || exchangeMeta.symbol || '$';
 
 
   // Différence vs prix officiel (USD) si dispo (tokenDetails.tokenPrice est supposé en USD)
-  const officialPriceUsd = tokenDetails?.tokenPrice;
+  const officialPriceUsd = tokenDetails?.tokenPrice || 1;
   const priceDiff = priceNum - (officialPriceUsd ?? 0);
   const priceDiffPct =
     typeof officialPriceUsd === 'number' && officialPriceUsd > 0
@@ -457,24 +456,36 @@ const combineOfferData = async (yamOffer: YamOffer): Promise<Offer> => {
     typeof officialYieldPct === 'number' && offerYieldDiff !== undefined
       ? (offerYieldDiff / officialYieldPct) * 100
       : undefined;
+
+  let offerSymbol = tokenDetails?.shortName || tokenDetails?.fullName;
+  if (!offerSymbol) {
+    const stableMeta = getStableMeta(chain, offerAddress);
+    if (stableMeta) {
+        offerSymbol = stableMeta.name || stableMeta.symbol;
+    } else {
+      const erc20Meta = await getErc20Meta(offerAddress, chain);
+      offerSymbol = erc20Meta.name || erc20Meta.symbol || 'Unknown property';
+    }
+  }
   
   return {
     id: yamOffer.offerId,
-    tokenAddress: propertyTokenAddress,
-    propertyName: tokenDetails?.shortName || tokenDetails?.fullName || 'Unknown property',
     price: priceNum.toFixed(2),
+    reversePrice: reversePriceNum.toFixed(2),
     amount: amountNum.toFixed(2),
     seller: yamOffer.buyerAddress,
     status: getStatusFromOffer(yamOffer),
     createdAt: yamOffer.createdAt && yamOffer.createdAt !== '0'
-      ? new Date(parseInt(yamOffer.createdAt) * 1000).toISOString()
-      : new Date().toISOString(),
+    ? new Date(parseInt(yamOffer.createdAt) * 1000).toISOString()
+    : new Date().toISOString(),
     chain,
     tokenDetails: tokenDetails || undefined,
-    exchangeTokenAddress,
-    exchangeTokenSymbol: exchangeMeta.symbol,
-    exchangeTokenDecimals: propertyIsBuyerToken ? yamOffer.offerTokenDecimals : yamOffer.buyerTokenDecimals,
-    priceSymbol,
+    offerAddress: offerAddress,
+    offerDecimals: offerTokenDecimals,
+    offerSymbol: offerSymbol,
+    buyerAddress,
+    buyerDecimals: buyerTokenDecimals,
+    buyerSymbol: exchangeMeta.symbol,
     officialPriceUsd,
     priceDiff,
     priceDiffPct,
@@ -559,12 +570,12 @@ export default function Home() {
   }, [showBuyModal, signer, offer]);
 
   const updateBuyModalData = async () => {
-    if (!signer || !offer || !offer.exchangeTokenAddress) return;
+    if (!signer || !offer || !offer.buyerAddress) return;
     setIsAllowanceLoading(true); // Re-using this loading state for all modal data
     try {
       const userAddress = await signer.getAddress();
       const spenderAddress = offer.chain === 'gnosis' ? YAM_CONTRACT_ADDRESS_GNOSIS : YAM_CONTRACT_ADDRESS_ETHEREUM;
-      const tokenContract = new ethers.Contract(offer.exchangeTokenAddress, ERC20_ABI, signer);
+      const tokenContract = new ethers.Contract(offer.buyerAddress, ERC20_ABI, signer);
       
       const [currentAllowance, userBalance] = await Promise.all([
         tokenContract.allowance(userAddress, spenderAddress),
@@ -582,15 +593,15 @@ export default function Home() {
   };
 
   const handleApprove = async () => {
-    if (!signer || !offer || !offer.exchangeTokenAddress || !buyAmount) return;
+    if (!signer || !offer || !offer.buyerAddress || !buyAmount) return;
 
     setIsApproving(true);
     setTxStatus('pending');
     try {
       const spenderAddress = offer.chain === 'gnosis' ? YAM_CONTRACT_ADDRESS_GNOSIS : YAM_CONTRACT_ADDRESS_ETHEREUM;
-      const tokenContract = new ethers.Contract(offer.exchangeTokenAddress, ERC20_ABI, signer);
+      const tokenContract = new ethers.Contract(offer.buyerAddress, ERC20_ABI, signer);
       
-      const decimals = offer.exchangeTokenDecimals || 18;
+      const decimals = offer.buyerDecimals || 18;
       const totalCost = parseFloat(buyAmount) * parseFloat(offer.price);
       
       // Round to avoid issues with floating point arithmetic
@@ -688,8 +699,8 @@ export default function Home() {
 
       const tx = await contract.buy(
         Number(offer!.id),
-        ethers.utils.parseUnits(offer!.price, offer!.exchangeTokenDecimals || 18),
-        ethers.utils.parseUnits(buyAmount, 18)
+        ethers.utils.parseUnits(offer!.price, offer!.buyerDecimals || 18),
+        ethers.utils.parseUnits(buyAmount, offer!.offerDecimals || 18)
       );
 
       await tx.wait();
@@ -867,12 +878,12 @@ export default function Home() {
                         className="flex items-center mt-2 gap-2 text-xl font-semibold text-gray-100 hover:underline transition-colors"
                         title="Open on the official website"
                       >
-                        <span>{offer.propertyName}</span>
+                        <span>{offer.offerSymbol}</span>
                         <ExternalLink className="w-5 h-5" />
                       </a>
                     ) : (
                       <div className="mt-2 text-xl font-semibold text-gray-100">
-                        {offer.propertyName}
+                        {offer.offerSymbol}
                       </div>
                     )}
                     {offer.tokenDetails && (
@@ -887,7 +898,7 @@ export default function Home() {
                     {(offer.tokenDetails?.imageLink?.[0] || offer.tokenDetails?.image) ? (
                       <img
                         src={(offer.tokenDetails.imageLink?.[0] || offer.tokenDetails.image) as string}
-                        alt={offer.propertyName}
+                        alt={offer.offerSymbol}
                         className="w-150 h-150 rounded-xl object-cover border border-gray-800"
                         loading="lazy"
                       />
@@ -936,14 +947,15 @@ export default function Home() {
                         <div className="flex justify-between items-center">
                           <span className="text-gray-200 font-medium">Available quantity</span>
                           <span className="text-xl font-bold text-[#F2A91E]">
-                            {offer.amount} tokens
+                            {offer.amount} {offer.offerSymbol}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center">
                           <span className="text-gray-200 font-medium">Total offer value</span>
                           <span className="text-2xl font-bold text-[#F2A91E]">
-                            {(parseFloat(offer.price) * parseFloat(offer.amount)).toFixed(2)} {offer.priceSymbol || '$'}
+                            {/* TODO : TEST SYMBOL */}
+                            {(parseFloat(offer.price) * parseFloat(offer.amount)).toFixed(2)} {offer.buyerSymbol || '$'}
                           </span>
                         </div>
                       </div>
@@ -959,13 +971,13 @@ export default function Home() {
                     <div className="mt-2 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full"></div>
                       <a
-                        href={"https://gnosisscan.io/token/" + offer.tokenAddress}
+                        href={"https://gnosisscan.io/token/" + offer.offerAddress}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center mt-2 gap-2 text-xl font-semibold text-gray-100 hover:underline transition-colors"
                         title="Open on Debank"
                       >
-                        <span>{offer.propertyName}</span>
+                        <span>{offer.offerSymbol}</span>
                         <ExternalLink className="w-5 h-5" />
                       </a>
                     </div>
@@ -978,13 +990,13 @@ export default function Home() {
                     <div className="mt-2 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full"></div>
                       <a
-                        href={"https://gnosisscan.io/token/" + offer.exchangeTokenAddress}
+                        href={"https://gnosisscan.io/token/" + offer.buyerAddress}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center mt-2 gap-2 text-xl font-semibold text-gray-100 hover:underline transition-colors"
                         title="Open on Debank"
                       >
-                        <span>{offer.exchangeTokenSymbol}</span>
+                        <span>{offer.buyerSymbol}</span>
                         <ExternalLink className="w-5 h-5" />
                       </a>
                     </div>
@@ -1040,7 +1052,7 @@ export default function Home() {
 
           if (buyAmount && parseFloat(buyAmount) > 0) {
             try {
-              const decimals = offer.exchangeTokenDecimals || 18;
+              const decimals = offer.buyerDecimals || 18;
               const totalCost = parseFloat(buyAmount) * parseFloat(offer.price);
 
               if (isNaN(totalCost)) {
@@ -1100,7 +1112,7 @@ export default function Home() {
                     </div>
                     <div className="flex justify-between mt-2 text-sm text-gray-400">
                       <span>Maximum: {offer.amount} tokens available</span>
-                      <span>Balance: {parseFloat(ethers.utils.formatUnits(balance, offer.exchangeTokenDecimals || 18)).toFixed(4)} {offer.exchangeTokenSymbol}</span>
+                      <span>Balance: {parseFloat(ethers.utils.formatUnits(balance, offer.buyerDecimals || 18)).toFixed(4)} {offer.buyerSymbol}</span>
                     </div>
                   </div>
 
@@ -1108,7 +1120,11 @@ export default function Home() {
                     <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-gray-400">Unit price</span>
-                        <span className="font-semibold text-gray-100">{offer.price} {offer.priceSymbol || '$'}</span>
+                        <span className="font-semibold text-gray-100">1 {offer.buyerSymbol || '$'} = {offer.price} {offer.offerSymbol}</span>
+                      </div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-400">Reverse price</span>
+                        <span className="font-semibold text-gray-100">1 {offer.offerSymbol} = {offer.reversePrice} {offer.buyerSymbol || '$'}</span>
                       </div>
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-gray-400">Amount</span>
@@ -1117,7 +1133,8 @@ export default function Home() {
                       <div className="border-t border-gray-800 mt-2 pt-2 flex justify-between">
                         <span className="font-semibold text-gray-200">Total value</span>
                         <span className="text-xl font-bold text-[#F2A91E]">
-                          {(parseFloat(offer.price) * parseFloat(buyAmount)).toFixed(6)} {offer.priceSymbol || '$'}
+                            {/* TODO : TEST SYMBOL */}
+                          {(parseFloat(offer.price) * parseFloat(buyAmount)).toFixed(6)} {offer.offerSymbol || '$'}
                         </span>
                       </div>
                     </div>
@@ -1165,7 +1182,7 @@ export default function Home() {
                         className="flex-1 px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                         disabled={isApproving || txStatus === 'pending' || isAllowanceLoading || !buyAmount || parseFloat(buyAmount) <= 0 || !!calculationError}
                       >
-                        {isAllowanceLoading ? 'Checking...' : (isApproving ? 'Approving...' : `Approve ${offer.exchangeTokenSymbol}`)}
+                        {isAllowanceLoading ? 'Checking...' : (isApproving ? 'Approving...' : `Approve ${offer.buyerSymbol}`)}
                       </button>
                     ) : (
                       <button
