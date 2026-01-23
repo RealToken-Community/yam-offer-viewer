@@ -1,7 +1,6 @@
 # 1. Install dependencies only when needed
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
-
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
@@ -9,13 +8,11 @@ COPY package.json yarn.lock* ./
 RUN apk add --no-cache git openssh
 RUN yarn --frozen-lockfile
 
-
 # 2. Rebuild the source code only when needed
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
 RUN yarn build
 
 # 3. Production image, copy all the files and run next
@@ -34,11 +31,8 @@ RUN adduser -S nextjs -u 1001
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-RUN npm i sharp@0.32.6 --ignore-engines
+# RUN npm i sharp@0.32.6 --ignore-engines
 USER nextjs
-
 EXPOSE 3000
-
 ENV PORT=3000
-
 CMD ["node", "server.js"]
