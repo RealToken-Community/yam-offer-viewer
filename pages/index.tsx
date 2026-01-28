@@ -263,10 +263,17 @@ const fetchOfferRpc = async (
     const priceBN: ethers.BigNumber = offerData?.[4];
     const amountBN: ethers.BigNumber = offerData?.[5];
 
-    // Selon `fetchOfferRpc.ts` (repo d'origine), le mapping utilisé est:
-    // offerToken = value1, buyerToken = value0
-    const offerToken = value1;
-    const buyerToken = value0;
+    // Mapping des tokens retournés par `showOffer`:
+    // [token0, token1, seller, buyer, price, amount]
+    //
+    // Dans YAM, `amount` représente la quantité du token vendu (la propriété / RealToken),
+    // et `price` est exprimé dans le token d'échange (stablecoin) par unité de propriété.
+    //
+    // En pratique, cela correspond à:
+    // - offerToken (vendu) = token0
+    // - buyerToken (payé / stablecoin) = token1
+    const offerToken = value0;
+    const buyerToken = value1;
 
     // ERC20 fallback: récupérer decimals via ERC20
     const ERC20_ABI = ['function decimals() view returns (uint8)'];
@@ -475,7 +482,9 @@ const combineOfferData = async (yamOffer: YamOffer): Promise<Offer> => {
     id: yamOffer.offerId,
     price: priceNum.toFixed(2),
     reversePrice: reversePriceNum.toFixed(2),
-    amount: amountNum.toFixed(2),
+    // Les RealTokens utilisent souvent une granularité fine; afficher 6 décimales
+    // pour éviter les écarts visibles vs d'autres interfaces (ex: 26.031567).
+    amount: amountNum.toFixed(6),
     seller: yamOffer.buyerAddress,
     status: getStatusFromOffer(yamOffer),
     createdAt: yamOffer.createdAt && yamOffer.createdAt !== '0'
@@ -969,7 +978,7 @@ export default function Home() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div>
                     <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-                      Buyer token
+                      Seller token
                     </label>
                     <div className="mt-2 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full"></div>
@@ -988,7 +997,7 @@ export default function Home() {
 
                   <div>
                     <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-                      Seller token
+                      Buyer token
                     </label>
                     <div className="mt-2 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full"></div>
