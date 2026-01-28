@@ -31,6 +31,9 @@ RUN adduser -S nextjs -u 1001
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Writable runtime cache directory (API writes tokens-cache.json)
+RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
+
 # RUN npm i sharp@0.32.6 --ignore-engines
 USER nextjs
 EXPOSE 3000
