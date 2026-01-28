@@ -9,6 +9,9 @@ import { ConnectButton } from '../components/ConnectButton';
 
 // Environment variables
 const YAM_API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!YAM_API_URL) {
+  throw new Error('Missing NEXT_PUBLIC_API_URL env variable')
+}
 
 // RPC Configuration
 const GNOSIS_RPC_URL = process.env.NEXT_PUBLIC_GNOSIS_RPC_URL || 'https://rpc.gnosischain.com';
