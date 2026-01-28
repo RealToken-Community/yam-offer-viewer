@@ -20,6 +20,12 @@ jobs:
 
       - name: Build
         run: yarn run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_ENV: prod
+          NEXT_PUBLIC_ETHEREUM_RPC_URL: ${{ secrets.NEXT_PUBLIC_ETHEREUM_RPC_URL }}
+          NEXT_PUBLIC_GNOSIS_RPC_URL: ${{ secrets.NEXT_PUBLIC_GNOSIS_RPC_URL }}
+          NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID }}
 
   deploy:
     name: Deploy to branch
@@ -41,6 +47,12 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_REGISTRY }}/yam-offer-viewer:${{ github.ref_name }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_ENV=prod
+            NEXT_PUBLIC_ETHEREUM_RPC_URL=${{ secrets.NEXT_PUBLIC_ETHEREUM_RPC_URL }}
+            NEXT_PUBLIC_GNOSIS_RPC_URL=${{ secrets.NEXT_PUBLIC_GNOSIS_RPC_URL }}
+            NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${{ secrets.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID }}
 
       - name: Configure SSH
         run: |
